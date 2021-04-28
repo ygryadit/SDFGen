@@ -6,13 +6,13 @@
 #include "makelevelset3.h"
 #include "config.h"
 
-#ifdef HAVE_VTK
-  #include <vtkImageData.h>
-  #include <vtkFloatArray.h>
-  #include <vtkXMLImageDataWriter.h>
-  #include <vtkPointData.h>
-  #include <vtkSmartPointer.h>
-#endif
+//#ifdef HAVE_VTK
+//  #include <vtkImageData.h>
+//  #include <vtkFloatArray.h>
+//  #include <vtkXMLImageDataWriter.h>
+//  #include <vtkPointData.h>
+//  #include <vtkSmartPointer.h>
+//#endif
 
 
 #include <fstream>
@@ -22,7 +22,7 @@
 
 int main(int argc, char* argv[]) {
   
-  if(argc != 4) {
+  /*if(argc != 4) {
     std::cout << "SDFGen - A utility for converting closed oriented triangle meshes into grid-based signed distance fields.\n";
     std::cout << "\nThe output file format is:";
     std::cout << "<ni> <nj> <nk>\n";
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\t<padding> specifies the number of cells worth of padding between the object bound box and the boundary of the distance field grid. Minimum is 1.\n\n";
     
     exit(-1);
-  }
+  }*/
 
   std::string filename(argv[1]);
   if(filename.size() < 5 || filename.substr(filename.size()-4) != std::string(".obj")) {
@@ -52,15 +52,18 @@ int main(int argc, char* argv[]) {
     exit(-1);
   }
 
-  std::stringstream arg2(argv[2]);
-  float dx;
-  arg2 >> dx;
-  
-  std::stringstream arg3(argv[3]);
-  int padding;
-  arg3 >> padding;
+  //std::stringstream arg2(argv[2]);
+  /*float dx;
+  arg2 >> dx;*/
 
-  if(padding < 1) padding = 1;
+    float dx;
+     
+  
+  //std::stringstream arg3(argv[3]);
+  //int padding;
+  //arg3 >> padding;
+
+  //if(padding < 1) padding = 1;
   //start with a massive inside out bound box.
   Vec3f min_box(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max()), 
     max_box(-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max());
@@ -96,10 +99,10 @@ int main(int argc, char* argv[]) {
       data >> c >> v0 >> v1 >> v2;
       faceList.push_back(Vec3ui(v0-1,v1-1,v2-1));
     }
-    else if( line.substr(0,2) == std::string("vn") ){
-      std::cerr << "Obj-loader is not able to parse vertex normals, please strip them from the input file. \n";
-      exit(-2); 
-    }
+    //else if( line.substr(0,2) == std::string("vn") ){
+    //  std::cerr << "Obj-loader is not able to parse vertex normals, please strip them from the input file. \n";
+    //  exit(-2); 
+    //}
     else {
       ++ignored_lines; 
     }
@@ -111,57 +114,93 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Read in " << vertList.size() << " vertices and " << faceList.size() << " faces." << std::endl;
 
+  std::cout << "Bound box size: (" << min_box << ") to (" << max_box << ") dim sum = " << max_box - min_box << std::endl;
+
+
   //Add padding around the box.
-  Vec3f unit(1,1,1);
-  min_box -= padding*dx*unit;
-  max_box += padding*dx*unit;
-  Vec3ui sizes = Vec3ui((max_box - min_box)/dx);
+  //Vec3f unit(1,1,1);
+  Vec3f min_box_(-0.8, -0.8, -0.8);
+  Vec3f max_box_(0.8, 0.8, 0.8);
+
+  if ((min_box[0] < min_box_[0]) | (min_box[1] < min_box_[1]) | (min_box[2] < min_box_[2]) |
+      (max_box[0] > max_box_[0]) | (max_box[1] > max_box_[1]) | (max_box[2] < max_box_[2]))
+      std::cerr << "The shape is assumed to be normalised to have the digonal equal to 1" << std::endl;
+
+  /*min_box -= padding*dx*unit;
+  max_box += padding*dx*unit;*/
+
+
+  min_box = min_box_;
+  max_box = max_box_;
+
+
+  /*Vec3ui sizes = Vec3ui((max_box - min_box)/dx);*/
   
+  Vec3ui sizes(64, 64, 64);
+
+  dx = (max_box[0] - min_box[0]) / sizes[0];
+  
+
+
   std::cout << "Bound box size: (" << min_box << ") to (" << max_box << ") with dimensions " << sizes << "." << std::endl;
 
   std::cout << "Computing signed distance field.\n";
   Array3f phi_grid;
-  make_level_set3(faceList, vertList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid);
+  Array3f grid_x, grid_y, grid_z;
+
+  //
+  //grid_x.resize(sizes[0], sizes[1], sizes[2]);
+  //grid_y.resize(sizes[0], sizes[1], sizes[2]);
+  //grid_z.resize(sizes[0], sizes[1], sizes[2]);
+
+   make_level_set3(faceList, vertList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid);
+  /*make_level_set3(faceList, vertList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid);*/
+  //make_level_set3(faceList, vertList, min_box, dx, sizes[0], sizes[1], sizes[2]);
+
+  std::cout << "Computed lelvel sets: "  << "\n";
 
   std::string outname;
 
-  #ifdef HAVE_VTK
-    // If compiled with VTK, we can directly output a volumetric image format instead
-    //Very hackily strip off file suffix.
-    outname = filename.substr(0, filename.size()-4) + std::string(".vti");
-    std::cout << "Writing results to: " << outname << "\n";
-    vtkSmartPointer<vtkImageData> output_volume = vtkSmartPointer<vtkImageData>::New();
+  //#ifdef HAVE_VTK
+  //  // If compiled with VTK, we can directly output a volumetric image format instead
+  //  //Very hackily strip off file suffix.
+  //  outname = filename.substr(0, filename.size()-4) + std::string(".vti");
+  //  std::cout << "Writing results to: " << outname << "\n";
+  //  vtkSmartPointer<vtkImageData> output_volume = vtkSmartPointer<vtkImageData>::New();
 
-    output_volume->SetDimensions(phi_grid.ni ,phi_grid.nj ,phi_grid.nk);
-    output_volume->SetOrigin( phi_grid.ni*dx/2, phi_grid.nj*dx/2,phi_grid.nk*dx/2);
-    output_volume->SetSpacing(dx,dx,dx);
+  //  output_volume->SetDimensions(phi_grid.ni ,phi_grid.nj ,phi_grid.nk);
+  //  output_volume->SetOrigin( phi_grid.ni*dx/2, phi_grid.nj*dx/2,phi_grid.nk*dx/2);
+  //  output_volume->SetSpacing(dx,dx,dx);
 
-    vtkSmartPointer<vtkFloatArray> distance = vtkSmartPointer<vtkFloatArray>::New();
-    
-    distance->SetNumberOfTuples(phi_grid.a.size());
-    
-    output_volume->GetPointData()->AddArray(distance);
-    distance->SetName("Distance");
+  //  vtkSmartPointer<vtkFloatArray> distance = vtkSmartPointer<vtkFloatArray>::New();
+  //  
+  //  distance->SetNumberOfTuples(phi_grid.a.size());
+  //  
+  //  output_volume->GetPointData()->AddArray(distance);
+  //  distance->SetName("Distance");
 
-    for(unsigned int i = 0; i < phi_grid.a.size(); ++i) {
-      distance->SetValue(i, phi_grid.a[i]);
-    }
+  //  for(unsigned int i = 0; i < phi_grid.a.size(); ++i) {
+  //    distance->SetValue(i, phi_grid.a[i]);
+  //  }
 
-    vtkSmartPointer<vtkXMLImageDataWriter> writer =
-    vtkSmartPointer<vtkXMLImageDataWriter>::New();
-    writer->SetFileName(outname.c_str());
+  //  vtkSmartPointer<vtkXMLImageDataWriter> writer =
+  //  vtkSmartPointer<vtkXMLImageDataWriter>::New();
+  //  writer->SetFileName(outname.c_str());
 
-    #if VTK_MAJOR_VERSION <= 5
-      writer->SetInput(output_volume);
-    #else
-      writer->SetInputData(output_volume);
-    #endif
-    writer->Write();
+  //  #if VTK_MAJOR_VERSION <= 5
+  //    writer->SetInput(output_volume);
+  //  #else
+  //    writer->SetInputData(output_volume);
+  //  #endif
+  //  writer->Write();
 
-  #else
+  //#else
     // if VTK support is missing, default back to the original ascii file-dump.
     //Very hackily strip off file suffix.
+
     outname = filename.substr(0, filename.size()-4) + std::string(".sdf");
+
+
     std::cout << "Writing results to: " << outname << "\n";
     
     std::ofstream outfile( outname.c_str());
@@ -172,7 +211,35 @@ int main(int argc, char* argv[]) {
       outfile << phi_grid.a[i] << std::endl;
     }
     outfile.close();
-  #endif
+
+
+    //Save positions:
+    grid_x.resize(sizes[0], sizes[1], sizes[2]);
+    grid_y.resize(sizes[0], sizes[1], sizes[2]);
+    grid_z.resize(sizes[0], sizes[1], sizes[2]);
+
+
+    for (int k = 0; k < sizes[2]; ++k) for (int j = 0; j < sizes[1]; ++j) for (int i = 0; i < sizes[0]; ++i) {
+        Vec3f gx(i * dx + min_box[0], j * dx + min_box[1], k * dx + min_box[2]); // not the center of a grid.          
+
+        grid_x(i, j, k) = gx[0];
+        grid_y(i, j, k) = gx[1];
+        grid_z(i, j, k) = gx[2];
+
+    }
+
+
+    std::string outname_grid_pos = filename.substr(0, filename.size() - 4) + std::string("_pos.txt");
+    
+    std::ofstream outfile_pos(outname_grid_pos.c_str());
+
+    for (unsigned int i = 0; i < phi_grid.a.size(); ++i) {
+        outfile_pos << grid_x.a[i] << " " << grid_y.a[i] << " "  << grid_z.a[i] << std::endl;
+    }
+    outfile_pos.close();
+
+
+  //#endif
 
   std::cout << "Processing complete.\n";
 
