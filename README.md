@@ -1,12 +1,10 @@
 # SDFGen edited version
 
-It takes as arguments an obj file without normals and textures. Be careful!
-
-It assumes that all shapes are within bounding boxes with min dimension [-0.8 -0.8 -0.8] amd max dimension [0.8 0.8 0.8].
-
-The gird size is set to 64 x 64 x 64.
+It takes as arguments an obj file without normals and textures. 
 
 Does not support currently different grid sizes in different diemnsions. 
+
+The SDF sampling is uniform -- not great. 
 
 # SDFGen
 A simple commandline utility to generate grid-based signed distance field (level set) generator from triangle meshes, using code from Robert Bridson's website.
